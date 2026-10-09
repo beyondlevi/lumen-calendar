@@ -42,6 +42,8 @@ type CalendarState = {
   today: Date;
   /** Updated every 30 s, for "in 25 min". */
   current: Date;
+  /** Counts the wearer's returns to the app (the page shown again). */
+  resumes: number;
   retry(): void;
   /** Setup's Try again: re-reads the settings and loads again. */
   reconnect(): Promise<void>;
@@ -101,6 +103,7 @@ export function CalendarProvider({children}: {children: ReactNode}) {
   const [tab, setTabState] = useState(loadTab);
   const [draft, setDraftState] = useState(loadDraft);
   const [current, setCurrent] = useState(now);
+  const [resumes, setResumes] = useState(0);
 
   const configState = config.state;
   const fixedNow = devNow(config.values)?.getTime() ?? null;
@@ -193,6 +196,7 @@ export function CalendarProvider({children}: {children: ReactNode}) {
     const onVisible = () => {
       if (document.visibilityState === 'visible') {
         setCurrent(now());
+        setResumes(count => count + 1);
         void load(false);
       }
     };
@@ -332,6 +336,7 @@ export function CalendarProvider({children}: {children: ReactNode}) {
     events,
     today: startOfDay(current),
     current,
+    resumes,
     retry,
     reconnect,
     tab,

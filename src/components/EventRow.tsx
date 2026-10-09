@@ -36,7 +36,7 @@ export function EventRow({event, past = false, relative = null, initialFocus = t
   const openEvent = () => navigate(eventPath(event));
 
   return (
-    <Container width="100%" onClick={openEvent} initialFocusEligible={initialFocus} aria-label={label} data-next-event={next ? 'true' : undefined}>
+    <Container width="100%" onClick={openEvent} initialFocusEligible={initialFocus} aria-label={label} data-next-event={next ? 'true' : undefined} data-event-end={event.end.getTime()}>
       <div className="event-row" aria-hidden="true">
         {event.allDay ? (
           <IconImage source={sunFilled} className="event-row-icon" />

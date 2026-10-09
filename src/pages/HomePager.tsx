@@ -30,7 +30,7 @@ export function HomePager() {
 
   return (
     <SubNavigationPager items={items} currentPageIndex={tab} onPageChange={next => setTab(next)} useBackButtonForHome homeIndex={TODAY_TAB}>
-      <TodayTab />
+      <TodayTab active={tab === TODAY_TAB} />
       <WeekTab />
       <WriteTab active={tab === NEW_TAB} />
       <CalendarsTab />
