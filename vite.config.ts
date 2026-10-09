@@ -9,7 +9,7 @@ export default defineConfig({
     target: ['firefox128'],
   },
   test: {
-    include: ['tests/unit/**/*.test.ts'],
+    include: ['tests/unit/**/*.test.{ts,mjs}'],
     environment: 'node',
   },
 });
