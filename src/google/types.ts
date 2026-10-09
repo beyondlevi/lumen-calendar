@@ -70,12 +70,29 @@ export type Meeting = {
   address: string | null;
 };
 
+/** One person invited to an event (rooms and other resources are left out). */
+export type Guest = {
+  /** The name Google has, else the e-mail address. */
+  name: string;
+  email: string | null;
+  /** One or two letters for the avatar. */
+  initials: string;
+  response: ResponseStatus;
+  organizer: boolean;
+  /** The owner of this calendar account. */
+  self: boolean;
+};
+
 export type Guests = {
   total: number;
   accepted: number;
   tentative: number;
   declined: number;
   needsAction: number;
+  /** Organizer first, then the owner, then by answer (going, maybe, awaiting, declined) and name. */
+  people: Guest[];
+  /** Google left some guests out of the list (very large events). */
+  omitted: boolean;
 };
 
 export type CalEvent = {

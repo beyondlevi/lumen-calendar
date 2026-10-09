@@ -1,4 +1,4 @@
-import type {ApiAttendee, ApiCalendarListEntry, ApiEvent, ApiEventDateTime, CalEvent, Calendar, Guests, Meeting, NewEvent} from './types';
+import type {ApiAttendee, ApiCalendarListEntry, ApiEvent, ApiEventDateTime, CalEvent, Calendar, Guest, Guests, Meeting, NewEvent, ResponseStatus} from './types';
 
 const DEFAULT_COLOR = '#2694fe';
 const HEX_COLOR = /^#[0-9a-f]{6}$/i;
@@ -40,25 +40,69 @@ function parseWhen(value: ApiEventDateTime | undefined): {date: Date; allDay: bo
   return null;
 }
 
-const ENTITIES: Record<string, string> = {amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' '};
+const ENTITIES: Record<string, string> = {amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: '\u00a0'};
 
-/** Google descriptions may be HTML: keep the text and its line breaks. */
-export function stripHtml(html: string): string {
-  return html
-    .replace(/<\s*br\s*\/?>/gi, '\n')
-    .replace(/<li\b[^>]*>/gi, '\n• ')
-    .replace(/<\/?\s*(p|div|li|ul|ol|h[1-6]|tr)\b[^>]*>/gi, '\n')
-    .replace(/<[^>]*>/g, '')
-    .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, name: string) => {
-      if (name[0] === '#') {
-        const code = name[1] === 'x' || name[1] === 'X' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
-        return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : entity;
-      }
-      return ENTITIES[name.toLowerCase()] ?? entity;
-    })
+function decodeEntities(text: string): string {
+  return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, name: string) => {
+    if (name[0] === '#') {
+      const code = name[1] === 'x' || name[1] === 'X' ? parseInt(name.slice(2), 16) : parseInt(name.slice(1), 10);
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : entity;
+    }
+    return ENTITIES[name.toLowerCase()] ?? entity;
+  });
+}
+
+/** Placeholders while converting HTML: the edge of a block, and of a paragraph. */
+const BLOCK = '\u0001';
+const PARAGRAPH = '\u0002';
+const TAG = /<\/?[a-z][a-z0-9]*\b[^>]*>/gi;
+const HTML_HINT = /<(?:br|p|div|span|a|b|i|u|em|strong|ul|ol|li|h[1-6]|table|tr|td)\b[^>]*>/i;
+
+/** A link as text: its words, then the address when the words aren't the address itself. */
+function linkText(href: string, inner: string): string {
+  let target = decodeEntities(href).trim();
+  // Google wraps links in its redirector: show where they go.
+  const redirect = /^https?:\/\/(?:www\.)?google\.com\/url\?(.*)$/i.exec(target);
+  if (redirect) target = new URLSearchParams(redirect[1]).get('q') ?? target;
+  target = target.replace(/^mailto:/i, '');
+  const words = decodeEntities(inner.replace(TAG, '')).replace(/\s+/g, ' ').trim();
+  if (!words) return target;
+  const bare = (value: string) => value.replace(/^[a-z]+:\/\//i, '').replace(/\/$/, '').toLowerCase();
+  return !target || bare(words) === bare(target) ? words : `${words} (${target})`;
+}
+
+/**
+ * Google descriptions are plain text or HTML (from Calendar's editor): keep the
+ * text, its line breaks and blank lines between paragraphs, lists as bullets
+ * and links as text.
+ */
+export function stripHtml(description: string): string {
+  let text = description.replace(/\r\n?/g, '\n');
+  if (HTML_HINT.test(text)) {
+    text = text
+      // In HTML a line break in the source is a space.
+      .replace(/\n/g, ' ')
+      .replace(/<a\b[^>]*?href\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))[^>]*>([\s\S]*?)<\/a\s*>/gi, (_match, quoted, single, bare, inner: string) =>
+        linkText(quoted ?? single ?? bare ?? '', inner),
+      )
+      // An empty line of Calendar's editor, then a <br> that only ends its block (browsers don't show it).
+      .replace(/<div\b[^>]*>\s*<br\s*\/?>\s*<\/div\s*>/gi, PARAGRAPH)
+      .replace(/<br\s*\/?>\s*(?=<\/(?:div|p|li)\s*>)/gi, '')
+      .replace(/<\s*br\s*\/?>/gi, '\n')
+      .replace(/<li\b[^>]*>/gi, `${BLOCK}• `)
+      .replace(/<\/?(?:li|div|tr|ul|ol|h[1-6])\b[^>]*>/gi, BLOCK)
+      .replace(/<\/?p\b[^>]*>/gi, PARAGRAPH)
+      .replace(TAG, '')
+      // Block edges become one line break, paragraph edges a blank line, <br> as many as there are.
+      .replace(/[\n\u0001\u0002 ]*[\u0001\u0002][\n\u0001\u0002 ]*/g, run => {
+        const breaks = (run.match(/\n/g) ?? []).length;
+        return '\n'.repeat(Math.max(breaks, run.includes(PARAGRAPH) ? 2 : 1));
+      });
+  }
+  return decodeEntities(text)
     .replace(/[ \t\u00a0]+/g, ' ')
     .replace(/ *\n */g, '\n')
-    .replace(/\n{2,}/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
 
@@ -83,16 +127,40 @@ export function mapMeeting(event: ApiEvent): Meeting | null {
   return null;
 }
 
-export function mapGuests(attendees: readonly ApiAttendee[]): Guests | null {
-  const people = attendees.filter(attendee => attendee.resource !== true);
+/** "Ana Souza" → "AS", "marco@example.com" → "M". */
+export function initialsOf(name: string): string {
+  const words = name.replace(/@.*$/, '').split(/[\s._-]+/).filter(Boolean);
+  const letters = (words.length > 1 ? [words[0], words[words.length - 1]] : words.slice(0, 1)).map(word => [...word][0] ?? '');
+  return letters.join('').toLocaleUpperCase() || '?';
+}
+
+const RESPONSES: readonly ResponseStatus[] = ['accepted', 'tentative', 'declined', 'needsAction'];
+const RESPONSE_ORDER: Record<ResponseStatus, number> = {accepted: 0, tentative: 1, needsAction: 2, declined: 3};
+
+export function mapGuest(attendee: ApiAttendee): Guest {
+  const email = attendee.email?.trim() || null;
+  const name = attendee.displayName?.trim() || email || '?';
+  const response = RESPONSES.includes(attendee.responseStatus as ResponseStatus) ? (attendee.responseStatus as ResponseStatus) : 'needsAction';
+  return {name, email, initials: initialsOf(name), response, organizer: attendee.organizer === true, self: attendee.self === true};
+}
+
+function compareGuests(a: Guest, b: Guest): number {
+  const rank = (guest: Guest) => (guest.organizer ? 0 : guest.self ? 1 : 2);
+  return rank(a) - rank(b) || RESPONSE_ORDER[a.response] - RESPONSE_ORDER[b.response] || a.name.localeCompare(b.name);
+}
+
+export function mapGuests(attendees: readonly ApiAttendee[], omitted = false): Guests | null {
+  const people = attendees.filter(attendee => attendee.resource !== true).map(mapGuest).sort(compareGuests);
   if (people.length === 0) return null;
-  const count = (status: string) => people.filter(attendee => (attendee.responseStatus ?? 'needsAction') === status).length;
+  const count = (status: ResponseStatus) => people.filter(guest => guest.response === status).length;
   return {
     total: people.length,
     accepted: count('accepted'),
     tentative: count('tentative'),
     declined: count('declined'),
     needsAction: count('needsAction'),
+    people,
+    omitted,
   };
 }
 
@@ -123,7 +191,7 @@ export function mapEvent(event: ApiEvent, calendar: Calendar, noTitle: string): 
     end: endDate,
     location: event.location?.trim() || null,
     meeting: mapMeeting(event),
-    guests: mapGuests(attendees),
+    guests: mapGuests(attendees, event.attendeesOmitted === true),
     selfResponse: self ? (self.responseStatus ?? 'needsAction') : null,
     description: description || null,
     attendees,

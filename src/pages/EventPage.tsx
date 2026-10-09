@@ -2,38 +2,21 @@ import camcorderFilled from '@wearables-ui-toolkit/icons/svg/camcorder__filled.s
 import circleCheckFilled from '@wearables-ui-toolkit/icons/svg/circlecheck__filled.svg';
 import mapLocationPinFilled from '@wearables-ui-toolkit/icons/svg/maplocationpin__filled.svg';
 import users2Filled from '@wearables-ui-toolkit/icons/svg/users2__filled.svg';
-import {Button, ButtonGroup, ButtonGroupAlignment, IconImage, MaterialLibrary, Page, ScrollView, TextColor, TextStyle, TextView} from '@wearables-ui-toolkit/mrbd';
+import {Button, ButtonGroup, ButtonGroupAlignment, Container, IconImage, MaterialLibrary, Page, ScrollView, TextColor, TextStyle, TextView} from '@wearables-ui-toolkit/mrbd';
 import {useMemo, useRef} from 'react';
 import {useParams} from 'react-router-dom';
+import {GUESTS_HEADING_ID, GuestList} from '../components/GuestList';
 import {LoadingContent, StateContent} from '../components/StateContent';
 import type {Reply} from '../google/client';
-import type {CalEvent, Guests} from '../google/types';
-import {formatTag, t, tp} from '../i18n/strings';
+import type {CalEvent} from '../google/types';
+import {guestsSummary} from '../guests';
+import {t} from '../i18n/strings';
 import {useCalendar} from '../state/CalendarProvider';
+import {useDetailScroll} from '../state/useDetailScroll';
 import {addDays, sameDay} from '../time/clock';
 import {dayWithDate, formatTimeRange, relativeDay, startsIn} from '../time/format';
 
-/** Long descriptions are cut here; the full text stays in Google Calendar. */
-const DESCRIPTION_LIMIT = 360;
-const GUEST_DESCRIPTION_LIMIT = 140;
-
-function guestsSummary(guests: Guests): string {
-  const answers = [
-    guests.accepted > 0 ? t('guestsGoing', {count: guests.accepted}) : null,
-    guests.tentative > 0 ? t('guestsMaybe', {count: guests.tentative}) : null,
-    guests.declined > 0 ? t('guestsDeclined', {count: guests.declined}) : null,
-  ].filter((part): part is string => part != null);
-  const total = tp('guests', guests.total);
-  if (answers.length === 0) return total;
-  return t('pair', {first: total, second: new Intl.ListFormat(formatTag(), {type: 'unit', style: 'short'}).format(answers)});
-}
-
-function clamp(text: string, limit: number): string {
-  if (text.length <= limit) return text;
-  const cut = text.slice(0, limit);
-  const space = cut.lastIndexOf(' ');
-  return `${(space > limit * 0.6 ? cut.slice(0, space) : cut).trimEnd()}…`;
-}
+const GUESTS_SUMMARY_ID = 'event-guests-summary';
 
 function whenText(event: CalEvent, today: Date): string {
   if (!event.allDay) return formatTimeRange(event.start, event.end);
@@ -49,7 +32,11 @@ function dayText(event: CalEvent, today: Date, current: Date): string {
   return soon ? t('pair', {first: day, second: soon}) : day;
 }
 
-/** One event: when, how to join, where, who, what; Going / Maybe / No when the owner is a guest. */
+/**
+ * One event: when, how to join, where, who, the whole description and the
+ * guests; Going / Maybe / No when the owner is a guest. Down scrolls the
+ * details to their end before it reaches the answers.
+ */
 export function EventPage() {
   const {calendarId = '', eventId = ''} = useParams();
   const {findEvent, status, today, current, reply} = useCalendar();
@@ -58,6 +45,9 @@ export function EventPage() {
   const maybeMaterial = useMemo(() => MaterialLibrary.themedPrimaryBlue(), []);
   const noMaterial = useMemo(() => MaterialLibrary.themedPrimaryBlue(), []);
   const sending = useRef(false);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const jumpTo = useDetailScroll(contentRef, shellRef, event?.guests ? GUESTS_SUMMARY_ID : null);
 
   if (!event) {
     const loading = status.kind === 'loading' || status.kind === 'connecting';
@@ -69,6 +59,8 @@ export function EventPage() {
   }
 
   const guest = event.selfResponse != null;
+  const summary = event.guests ? guestsSummary(event.guests) : '';
+  const showGuests = () => jumpTo(document.getElementById(GUESTS_HEADING_ID));
   const answer = event.selfResponse;
   const send = async (response: Reply) => {
     if (sending.current || answer === response) return;
@@ -86,9 +78,9 @@ export function EventPage() {
 
   return (
     <Page headerText={event.title} headerMaxLines={1} headerMetadata={event.calendarName} enableSystemBarInset={false}>
-      <div className="action-page-shell">
+      <div className="action-page-shell" ref={shellRef}>
         <ScrollView insetForHeader tabIndex={0} ariaLabel={t('eventDetailsLabel')}>
-          <div className="content-inset">
+          <div className="content-inset" ref={contentRef}>
             <div className="event-when">
               <TextView as="p" textStyle={TextStyle.BODY2_EMPHASIZED}>
                 {whenText(event, today)}
@@ -110,16 +102,19 @@ export function EventPage() {
               </div>
             ) : null}
             {event.guests ? (
-              <div className="fact-row">
-                <IconImage source={users2Filled} className="fact-icon" />
-                <TextView textStyle={TextStyle.BODY2}>{guestsSummary(event.guests)}</TextView>
-              </div>
+              <Container width="100%" id={GUESTS_SUMMARY_ID} onClick={showGuests} initialFocusEligible={false} aria-label={t('guestsSummaryLabel', {summary})}>
+                <div className="guests-summary" aria-hidden="true">
+                  <IconImage source={users2Filled} className="fact-icon" />
+                  <TextView textStyle={TextStyle.BODY2}>{summary}</TextView>
+                </div>
+              </Container>
             ) : null}
             {event.description ? (
-              <TextView as="p" textStyle={TextStyle.LABEL} textColor={TextColor.SECONDARY} className="event-description">
-                {clamp(event.description, guest ? GUEST_DESCRIPTION_LIMIT : DESCRIPTION_LIMIT)}
+              <TextView as="p" textStyle={TextStyle.LABEL} textColor={TextColor.SECONDARY} className="event-description" aria-label={t('descriptionLabel')}>
+                {event.description}
               </TextView>
             ) : null}
+            {event.guests ? <GuestList guests={event.guests} /> : null}
           </div>
         </ScrollView>
         {guest ? (

@@ -171,6 +171,54 @@ body {
 
 .event-description {
   white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* The guests summary is a link to the guest list below. */
+.guests-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--uit-spacing-medium);
+  min-inline-size: 0;
+  padding: var(--uit-spacing-large);
+}
+
+.guest-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+  min-inline-size: 0;
+}
+
+.guest-section > h2,
+.guest-section > p {
+  margin: 0;
+}
+
+.guest-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-inline-size: 0;
+}
+
+.guest-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--uit-spacing-medium);
+  min-inline-size: 0;
+}
+
+.guest-text {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
 }
 
 /* New event. */
