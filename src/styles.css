@@ -1,0 +1,344 @@
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  background: var(--uit-color-background-window);
+}
+
+body {
+  overflow: hidden;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* A route with a bottom dock: the single vertical owner, then the actions. */
+.action-page-shell {
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  block-size: 100%;
+  min-block-size: 0;
+  min-inline-size: 0;
+}
+
+.action-dock {
+  min-inline-size: 0;
+  padding-block-end: var(--uit-spacing-xsmall);
+}
+
+.content-inset {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--uit-spacing-large) + var(--uit-spacing-xsmall));
+  min-inline-size: 0;
+  padding: var(--uit-spacing-large);
+}
+
+.content-inset > p,
+.content-inset > h2 {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.state-action {
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* Today and Week: the all-day chips, then one row per event. */
+.agenda-inset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-sm-med);
+  min-inline-size: 0;
+  padding-inline: var(--uit-spacing-large);
+  padding-block: var(--uit-spacing-small) var(--uit-spacing-large);
+}
+
+.all-day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: var(--uit-spacing-small);
+}
+
+.day-heading {
+  margin: 0;
+  padding-block-start: var(--uit-spacing-small);
+  padding-inline-start: var(--uit-spacing-medium);
+}
+
+.event-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--uit-spacing-medium);
+  min-inline-size: 0;
+  padding: var(--uit-spacing-large);
+}
+
+.event-row-time {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-inline-size: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.event-row-icon {
+  inline-size: var(--uit-icon-2xl);
+  block-size: var(--uit-icon-2xl);
+  color: var(--uit-color-icon-primary);
+}
+
+.event-row-main {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.event-row-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--uit-spacing-small);
+  min-inline-size: 0;
+}
+
+.event-row-title {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.event-row-when {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.event-row-detail {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.calendar-dot {
+  flex: 0 0 auto;
+  display: block;
+  inline-size: var(--uit-spacing-sm-med);
+  block-size: var(--uit-spacing-sm-med);
+  border-radius: var(--uit-corner-radius-xlarge);
+}
+
+/* Event details. */
+.event-when {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.event-when > p {
+  margin: 0;
+}
+
+.fact-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--uit-spacing-medium);
+  min-inline-size: 0;
+}
+
+.fact-row > span {
+  overflow-wrap: anywhere;
+}
+
+.fact-icon {
+  inline-size: var(--uit-icon-medium);
+  block-size: var(--uit-icon-medium);
+  color: var(--uit-color-icon-primary);
+}
+
+.event-description {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+/* The guests summary is a link to the guest list below. */
+.guests-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--uit-spacing-medium);
+  min-inline-size: 0;
+  padding: var(--uit-spacing-large);
+}
+
+.guest-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+  min-inline-size: 0;
+}
+
+.guest-section > h2,
+.guest-section > p {
+  margin: 0;
+}
+
+.guest-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-inline-size: 0;
+}
+
+.guest-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  column-gap: var(--uit-spacing-medium);
+  min-inline-size: 0;
+}
+
+.guest-text {
+  display: flex;
+  flex-direction: column;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* New event. */
+.write-inset {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--uit-spacing-large);
+  min-inline-size: 0;
+  padding-inline: var(--uit-spacing-large);
+  padding-block: var(--uit-spacing-small) var(--uit-spacing-large);
+}
+
+.write-example {
+  margin: 0;
+  text-align: center;
+}
+
+.write-action,
+.write-hints {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--uit-spacing-small);
+}
+
+/* Review: the card's facts. */
+.review-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+  min-inline-size: 0;
+  padding: var(--uit-spacing-large);
+}
+
+.review-card > p {
+  margin: 0;
+}
+
+.review-note {
+  margin: 0;
+  text-align: center;
+}
+
+/* Setup. */
+.setup-inset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--uit-spacing-medium);
+  min-inline-size: 0;
+  padding: var(--uit-spacing-large);
+}
+
+.setup-inset > p {
+  margin: 0;
+  text-align: center;
+}
+
+.setup-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-inline-size: 0;
+}
+
+.setup-step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  column-gap: var(--uit-spacing-medium);
+}
+
+.setup-step-number {
+  inline-size: var(--uit-icon-medium);
+  block-size: var(--uit-icon-medium);
+  color: var(--uit-color-icon-secondary);
+}
+
+.dock-center {
+  display: flex;
+  justify-content: center;
+}
+
+/* Loading placeholders shaped like the event rows. */
+.shimmer-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--uit-spacing-large);
+}
+
+.shimmer-row {
+  display: flex;
+  align-items: center;
+  gap: var(--uit-spacing-medium);
+  min-inline-size: 0;
+}
+
+.shimmer-time {
+  flex: 0 0 auto;
+  inline-size: var(--uit-icon-2xl);
+  block-size: var(--uit-icon-2xl);
+}
+
+.shimmer-lines {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: var(--uit-spacing-small);
+  min-inline-size: 0;
+}
+
+.shimmer-line {
+  inline-size: 100%;
+  block-size: var(--uit-spacing-large);
+}
+
+.shimmer-line--short {
+  inline-size: 40%;
+}

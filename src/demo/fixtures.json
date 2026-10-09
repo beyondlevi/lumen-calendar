@@ -1,0 +1,61 @@
+{
+  "comment": "Fictional calendars for demo mode and the e2e mock server. Each event's day is counted from today; start/end are local times, or allDayDays for an all-day event. mockOnly events exist only on the mock server.",
+  "calendars": [
+    {"id": "ana.souza@example.com", "summary": "ana.souza@example.com", "summaryOverride": "Personal", "backgroundColor": "#26a756", "accessRole": "owner", "primary": true, "selected": true},
+    {"id": "work.team@group.calendar.google.com", "summary": "Work", "backgroundColor": "#2694fe", "accessRole": "writer", "selected": true},
+    {"id": "en.brazilian#holiday@group.v.calendar.google.com", "summary": "Holidays in Brazil", "backgroundColor": "#ebb23b", "accessRole": "reader", "selected": true},
+    {"id": "addressbook#contacts@group.v.calendar.google.com", "summary": "Birthdays", "backgroundColor": "#ed3b62", "accessRole": "reader", "selected": false}
+  ],
+  "events": [
+    {"calendarId": "ana.souza@example.com", "id": "evbirthday", "day": 0, "allDayDays": 1, "summary": "Mom's birthday"},
+    {"calendarId": "work.team@group.calendar.google.com", "id": "evteamsync", "mockOnly": true, "day": 0, "start": "09:00", "end": "09:30", "summary": "Team sync", "hangoutLink": "https://meet.google.com/kqv-rtsm-pwd", "conferenceData": {"conferenceSolution": {"name": "Google Meet"}, "entryPoints": [{"entryPointType": "video", "uri": "https://meet.google.com/kqv-rtsm-pwd"}]}},
+    {"calendarId": "ana.souza@example.com", "id": "evcoffee", "mockOnly": true, "day": 0, "start": "10:30", "end": "11:00", "summary": "Coffee with Leo", "location": "Padaria Real"},
+    {"calendarId": "ana.souza@example.com", "id": "evlunch", "mockOnly": true, "day": 0, "start": "12:00", "end": "13:00", "summary": "Lunch", "location": "Home"},
+    {"calendarId": "work.team@group.calendar.google.com", "id": "evoneonone", "mockOnly": true, "day": 0, "start": "13:30", "end": "14:00", "summary": "1:1 with Marco", "hangoutLink": "https://meet.google.com/one-onex-mrc", "conferenceData": {"conferenceSolution": {"name": "Google Meet"}, "entryPoints": [{"entryPointType": "video", "uri": "https://meet.google.com/one-onex-mrc"}]}},
+    {
+      "calendarId": "work.team@group.calendar.google.com", "id": "evdesignreview", "day": 0, "start": "15:00", "end": "16:00",
+      "summary": "Design review",
+      "location": "Room 3 · Av. Paulista, 1000",
+      "description": "<p>Go through the new onboarding screens before the release.</p><p><b>Bring</b> the latest prototype &amp; notes.</p><p>Agenda:</p><ul><li>Welcome flow and sign-in (Julia)</li><li>Calendar permission copy (Rafael)</li><li>Empty states and errors (Marco)</li><li>What ships on Friday, what waits</li></ul><p>Prototype: <a href=\"https://www.google.com/url?q=https://figma.example.com/onboarding&amp;sa=D\">onboarding flows</a><br>Notes from last week: <a href=\"https://docs.example.com/review-notes\">https://docs.example.com/review-notes</a></p><p>If you can't make it, leave comments on the prototype by noon.</p>",
+      "hangoutLink": "https://meet.google.com/abc-defg-hij",
+      "conferenceData": {"conferenceSolution": {"name": "Google Meet"}, "entryPoints": [{"entryPointType": "video", "uri": "https://meet.google.com/abc-defg-hij", "label": "meet.google.com/abc-defg-hij"}, {"entryPointType": "phone", "uri": "tel:+55-11-4000-0000"}]},
+      "attendees": [
+        {"email": "ana.souza@example.com", "displayName": "Ana Souza", "self": true, "responseStatus": "accepted"},
+        {"email": "marco@example.com", "displayName": "Marco Lopes", "organizer": true, "responseStatus": "accepted"},
+        {"email": "julia@example.com", "displayName": "Julia Reis", "responseStatus": "accepted"},
+        {"email": "rafael@example.com", "displayName": "Rafael Costa", "responseStatus": "tentative"},
+        {"email": "lena@example.com", "displayName": "Lena", "responseStatus": "needsAction"},
+        {"email": "bruno.lima@example.com", "responseStatus": "declined"},
+        {"email": "room3@resource.calendar.google.com", "displayName": "Room 3", "resource": true, "responseStatus": "accepted"}
+      ]
+    },
+    {"calendarId": "ana.souza@example.com", "id": "evcallandy", "day": 0, "start": "16:30", "end": "17:00", "summary": "Call with Andy", "location": "Phone"},
+    {"calendarId": "ana.souza@example.com", "id": "evgym", "day": 0, "start": "19:00", "end": "20:00", "summary": "Gym", "location": "Smart Fit Paulista"},
+    {
+      "calendarId": "work.team@group.calendar.google.com", "id": "evstandup", "day": 1, "start": "09:00", "end": "09:15",
+      "summary": "Standup",
+      "hangoutLink": "https://meet.google.com/xyz-uvwt-rst",
+      "conferenceData": {"conferenceSolution": {"name": "Google Meet"}, "entryPoints": [{"entryPointType": "video", "uri": "https://meet.google.com/xyz-uvwt-rst"}]},
+      "attendees": [
+        {"email": "ana.souza@example.com", "self": true, "responseStatus": "needsAction"},
+        {"email": "marco@example.com", "displayName": "Marco", "organizer": true, "responseStatus": "accepted"},
+        {"email": "julia@example.com", "displayName": "Julia", "responseStatus": "accepted"}
+      ]
+    },
+    {"calendarId": "ana.souza@example.com", "id": "evlunchana", "day": 1, "start": "13:00", "end": "14:00", "summary": "Lunch with Ana", "location": "Coco Bambu"},
+    {"calendarId": "ana.souza@example.com", "id": "evubatuba", "day": 2, "allDayDays": 2, "summary": "Trip to Ubatuba", "description": "Ferry at 8. Sunscreen, books."},
+    {"calendarId": "addressbook#contacts@group.v.calendar.google.com", "id": "evbruno", "day": 3, "allDayDays": 1, "summary": "Bruno's birthday"},
+    {"calendarId": "ana.souza@example.com", "id": "evdentist", "day": 4, "start": "10:00", "end": "11:00", "summary": "Dentist", "location": "Clínica Sorriso"},
+    {
+      "calendarId": "work.team@group.calendar.google.com", "id": "evplanning", "day": 5, "start": "14:00", "end": "15:30",
+      "summary": "Sprint planning",
+      "hangoutLink": "https://meet.google.com/pln-sprt-qrs",
+      "conferenceData": {"conferenceSolution": {"name": "Google Meet"}, "entryPoints": [{"entryPointType": "video", "uri": "https://meet.google.com/pln-sprt-qrs"}]},
+      "attendees": [
+        {"email": "ana.souza@example.com", "self": true, "responseStatus": "tentative"},
+        {"email": "marco@example.com", "displayName": "Marco", "organizer": true, "responseStatus": "accepted"}
+      ]
+    },
+    {"calendarId": "en.brazilian#holiday@group.v.calendar.google.com", "id": "evholiday", "day": 6, "allDayDays": 1, "summary": "Public holiday"}
+  ]
+}
