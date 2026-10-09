@@ -9,7 +9,7 @@ import {Navigate, useNavigate} from 'react-router-dom';
 import {locale, t} from '../i18n/strings';
 import {parseEventText, type ParsedEvent} from '../parse/eventText';
 import {useCalendar} from '../state/CalendarProvider';
-import {focusAfterTransition, requestFocus} from '../state/returnFocus';
+import {focusWhenSettled, requestFocus} from '../state/returnFocus';
 import {addDays, now, sameDay, startOfDay} from '../time/clock';
 import {dayWithDate, formatTimeRange} from '../time/format';
 
@@ -35,18 +35,20 @@ export function ReviewPage() {
   const [today] = useState(() => startOfDay(now()));
   const saveMaterial = useMemo(() => MaterialLibrary.themedPrimaryBlue(), []);
   const saving = useRef(false);
+  const canSave = parsed.start != null && parsed.end != null && target != null;
+  const shellRef = useRef<HTMLDivElement>(null);
   const saveRef = useRef<ButtonHandle>(null);
   const editRef = useRef<ButtonHandle>(null);
-  const canSave = parsed.start != null && parsed.end != null && target != null;
 
-  // A new review starts on Save (or Edit when there is nothing to save), not
-  // where the previous visit to this screen left the focus.
+  // Each review starts on Save (Edit when there is nothing to save), not where
+  // the previous visit to this screen left the focus.
   useEffect(
-    () => focusAfterTransition(() => (canSave ? saveRef : editRef).current?.getElement() ?? null),
+    () => focusWhenSettled(() => shellRef.current, () => (canSave ? saveRef : editRef).current?.getElement() ?? null),
     // Only when the screen opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
+
 
   if (draft.trim() === '') {
     return <Navigate to="/" replace />;
@@ -95,7 +97,7 @@ export function ReviewPage() {
 
   return (
     <Page headerText={t('reviewHeader')} headerMetadata={t('reviewMetadata')} enableSystemBarInset={false}>
-      <div className="action-page-shell">
+      <div className="action-page-shell" ref={shellRef}>
         <ScrollView insetForHeader ariaLabel={t('reviewLabel')}>
           <div className="content-inset">
             <Container width="100%" onClick={nextCalendar} interactive={canSwitch} initialFocusEligible={false} aria-label={cardLabel}>

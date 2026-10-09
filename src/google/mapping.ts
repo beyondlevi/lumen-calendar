@@ -46,8 +46,8 @@ const ENTITIES: Record<string, string> = {amp: '&', lt: '<', gt: '>', quot: '"',
 export function stripHtml(html: string): string {
   return html
     .replace(/<\s*br\s*\/?>/gi, '\n')
-    .replace(/<\/\s*(p|div|li|h[1-6]|tr)\s*>/gi, '\n')
-    .replace(/<li[^>]*>/gi, '• ')
+    .replace(/<li\b[^>]*>/gi, '\n• ')
+    .replace(/<\/?\s*(p|div|li|ul|ol|h[1-6]|tr)\b[^>]*>/gi, '\n')
     .replace(/<[^>]*>/g, '')
     .replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (entity, name: string) => {
       if (name[0] === '#') {
@@ -56,9 +56,9 @@ export function stripHtml(html: string): string {
       }
       return ENTITIES[name.toLowerCase()] ?? entity;
     })
-    .replace(/[ \t ]+/g, ' ')
+    .replace(/[ \t\u00a0]+/g, ' ')
     .replace(/ *\n */g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n{2,}/g, '\n')
     .trim();
 }
 

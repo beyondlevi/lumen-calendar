@@ -265,7 +265,8 @@ export const locale: Locale = resolveLocale([browserLanguage()]);
  * app shows (so `en-GB` keeps its 24-hour clock), else that language's default.
  */
 export function formatTag(target: Locale = locale, language: string = browserLanguage()): string {
-  return resolveLocale([language]) === target && language.includes('-') ? language : target === 'pt' ? 'pt-BR' : 'en-US';
+  const [base, region] = language.toLowerCase().split('-');
+  return base === target && region ? language : target === 'pt' ? 'pt-BR' : 'en-US';
 }
 
 type Params = Record<string, string | number>;
