@@ -17,6 +17,7 @@
 //   /__mock/writes         the inserts and patches received
 //   /__mock/stats          token requests and the headers asked for in preflights
 //   /__mock/fail?status=500&count=N | ?network=1&count=N   the next N Calendar calls fail
+//   /__mock/delay?ms=N     Calendar calls answer N ms late (a slow phone link)
 //   /__mock/expire         access tokens issued so far are refused with 401
 //   /__mock/revoke         the refresh token is refused (invalid_grant)
 import fs from 'node:fs';
@@ -75,6 +76,7 @@ export function startMockServer(port = MOCK_PORT, host = '127.0.0.1') {
       created: [],
       patches: new Map(),
       fail: null,
+      delayMs: 0,
       tokens: new Set(),
       issued: 0,
       tokenRequests: 0,
@@ -113,6 +115,7 @@ export function startMockServer(port = MOCK_PORT, host = '127.0.0.1') {
         if (control === 'reset') reset();
         if (control === 'expire') state.tokens.clear();
         if (control === 'revoke') state.revoked = true;
+        if (control === 'delay') state.delayMs = Number(url.searchParams.get('ms') ?? 0);
         if (control === 'fail') {
           state.fail = {
             status: Number(url.searchParams.get('status') ?? 500),
@@ -158,75 +161,84 @@ export function startMockServer(port = MOCK_PORT, host = '127.0.0.1') {
       if (!url.pathname.startsWith('/calendar/v3/')) {
         return googleError(res, 404, 'notFound', 'Not Found');
       }
-      const token = (req.headers.authorization ?? '').replace(/^Bearer /, '');
-      if (!state.tokens.has(token)) {
-        return googleError(res, 401, 'authError', 'Invalid Credentials');
+      if (state.delayMs > 0) {
+        setTimeout(() => answer(req, res, url, body), state.delayMs);
+        return;
       }
-      if (state.fail && state.fail.count > 0) {
-        state.fail.count -= 1;
-        if (state.fail.network) {
-          req.socket.destroy();
-          return;
-        }
-        return googleError(res, state.fail.status, 'backendError', 'Backend Error');
-      }
-
-      const pathname = url.pathname.slice('/calendar/v3'.length);
-      if (pathname === '/users/me/calendarList' && req.method === 'GET') {
-        return send(res, 200, {kind: 'calendar#calendarList', items: fixtures.calendars});
-      }
-
-      const match = /^\/calendars\/([^/]+)\/events(?:\/([^/]+))?$/.exec(pathname);
-      if (!match) return googleError(res, 404, 'notFound', 'Not Found');
-      const calendarId = decodeURIComponent(match[1]);
-      const eventId = match[2] ? decodeURIComponent(match[2]) : null;
-      if (!fixtures.calendars.some(calendar => calendar.id === calendarId)) {
-        return googleError(res, 404, 'notFound', 'Not Found');
-      }
-
-      if (req.method === 'GET' && !eventId) {
-        const timeMin = new Date(url.searchParams.get('timeMin'));
-        const timeMax = new Date(url.searchParams.get('timeMax'));
-        if (Number.isNaN(timeMin.getTime()) || Number.isNaN(timeMax.getTime())) {
-          return googleError(res, 400, 'badRequest', 'Bad Request');
-        }
-        const items = [...materialize(timeMin), ...state.created]
-          .filter(event => event.calendarId === calendarId)
-          .map(event => ({...event, ...(state.patches.get(`${calendarId}/${event.id}`) ?? {})}))
-          .filter(event => {
-            const [start, end] = bounds(event);
-            return start < timeMax && end > timeMin;
-          })
-          .sort((a, b) => bounds(a)[0] - bounds(b)[0])
-          .map(({calendarId: _calendarId, ...event}) => event);
-        return send(res, 200, {kind: 'calendar#events', items});
-      }
-
-      if (req.method === 'POST' && !eventId) {
-        const event = JSON.parse(body || '{}');
-        const created = {...event, id: `created${state.created.length + 1}`, status: 'confirmed', calendarId};
-        state.created.push(created);
-        state.writes.push({method: 'POST', calendarId, body: event});
-        const {calendarId: _calendarId, ...response} = created;
-        return send(res, 200, response);
-      }
-
-      if (req.method === 'PATCH' && eventId) {
-        const change = JSON.parse(body || '{}');
-        state.writes.push({method: 'PATCH', calendarId, eventId, sendUpdates: url.searchParams.get('sendUpdates'), body: change});
-        const key = `${calendarId}/${eventId}`;
-        state.patches.set(key, {...(state.patches.get(key) ?? {}), ...change});
-        const today = new Date();
-        const all = [...materialize(new Date(today.getFullYear(), today.getMonth(), today.getDate())), ...state.created];
-        const original = all.find(event => event.calendarId === calendarId && event.id === eventId);
-        if (!original) return googleError(res, 404, 'notFound', 'Not Found');
-        const {calendarId: _calendarId, ...response} = {...original, ...state.patches.get(key)};
-        return send(res, 200, response);
-      }
-
-      return googleError(res, 405, 'methodNotAllowed', 'Method Not Allowed');
+      answer(req, res, url, body);
     });
   });
+
+  /** One Calendar API call. */
+  function answer(req, res, url, body) {
+    const token = (req.headers.authorization ?? '').replace(/^Bearer /, '');
+    if (!state.tokens.has(token)) {
+      return googleError(res, 401, 'authError', 'Invalid Credentials');
+    }
+    if (state.fail && state.fail.count > 0) {
+      state.fail.count -= 1;
+      if (state.fail.network) {
+        req.socket.destroy();
+        return;
+      }
+      return googleError(res, state.fail.status, 'backendError', 'Backend Error');
+    }
+
+    const pathname = url.pathname.slice('/calendar/v3'.length);
+    if (pathname === '/users/me/calendarList' && req.method === 'GET') {
+      return send(res, 200, {kind: 'calendar#calendarList', items: fixtures.calendars});
+    }
+
+    const match = /^\/calendars\/([^/]+)\/events(?:\/([^/]+))?$/.exec(pathname);
+    if (!match) return googleError(res, 404, 'notFound', 'Not Found');
+    const calendarId = decodeURIComponent(match[1]);
+    const eventId = match[2] ? decodeURIComponent(match[2]) : null;
+    if (!fixtures.calendars.some(calendar => calendar.id === calendarId)) {
+      return googleError(res, 404, 'notFound', 'Not Found');
+    }
+
+    if (req.method === 'GET' && !eventId) {
+      const timeMin = new Date(url.searchParams.get('timeMin'));
+      const timeMax = new Date(url.searchParams.get('timeMax'));
+      if (Number.isNaN(timeMin.getTime()) || Number.isNaN(timeMax.getTime())) {
+        return googleError(res, 400, 'badRequest', 'Bad Request');
+      }
+      const items = [...materialize(timeMin), ...state.created]
+        .filter(event => event.calendarId === calendarId)
+        .map(event => ({...event, ...(state.patches.get(`${calendarId}/${event.id}`) ?? {})}))
+        .filter(event => {
+          const [start, end] = bounds(event);
+          return start < timeMax && end > timeMin;
+        })
+        .sort((a, b) => bounds(a)[0] - bounds(b)[0])
+        .map(({calendarId: _calendarId, ...event}) => event);
+      return send(res, 200, {kind: 'calendar#events', items});
+    }
+
+    if (req.method === 'POST' && !eventId) {
+      const event = JSON.parse(body || '{}');
+      const created = {...event, id: `created${state.created.length + 1}`, status: 'confirmed', calendarId};
+      state.created.push(created);
+      state.writes.push({method: 'POST', calendarId, body: event});
+      const {calendarId: _calendarId, ...response} = created;
+      return send(res, 200, response);
+    }
+
+    if (req.method === 'PATCH' && eventId) {
+      const change = JSON.parse(body || '{}');
+      state.writes.push({method: 'PATCH', calendarId, eventId, sendUpdates: url.searchParams.get('sendUpdates'), body: change});
+      const key = `${calendarId}/${eventId}`;
+      state.patches.set(key, {...(state.patches.get(key) ?? {}), ...change});
+      const today = new Date();
+      const all = [...materialize(new Date(today.getFullYear(), today.getMonth(), today.getDate())), ...state.created];
+      const original = all.find(event => event.calendarId === calendarId && event.id === eventId);
+      if (!original) return googleError(res, 404, 'notFound', 'Not Found');
+      const {calendarId: _calendarId, ...response} = {...original, ...state.patches.get(key)};
+      return send(res, 200, response);
+    }
+
+    return googleError(res, 405, 'methodNotAllowed', 'Method Not Allowed');
+  }
   return new Promise(resolve => server.listen(port, host, () => resolve(server)));
 }
 

@@ -92,7 +92,7 @@ async function compose(page, text) {
   await page.waitForTimeout(300);
 }
 
-async function openApp(browser, name, config, {appUrl = APP, route = '/', locale = 'en-GB', blockOthers = false} = {}) {
+async function openApp(browser, name, config, {appUrl = APP, route = '/', locale = 'en-GB', blockOthers = false, clock = false} = {}) {
   const context = await browser.newContext({viewport: {width: 600, height: 600}, locale});
   await context.addInitScript(values => {
     if (!sessionStorage.getItem('e2e-config-set')) {
@@ -114,9 +114,45 @@ async function openApp(browser, name, config, {appUrl = APP, route = '/', locale
   lastPage = page;
   const errors = [];
   page.on('pageerror', error => errors.push(String(error)));
+  // A clock the test can move forward (it runs on its own meanwhile).
+  if (clock) await page.clock.install({time: new Date()});
   await page.goto(`${appUrl}${route}`);
   const shot = step => page.screenshot({path: path.join(outDir, `${name}-${step}.png`)});
   return {page, context, errors, outside, shot};
+}
+
+/** The focused element's box, and the window's height. */
+async function focusedBox(page) {
+  return page.evaluate(() => {
+    const rect = document.activeElement.getBoundingClientRect();
+    return {top: rect.top, bottom: rect.bottom, height: window.innerHeight};
+  });
+}
+
+/** Where the event's details are scrolled to, and how far they go. */
+async function detailsScroll(page) {
+  return page.evaluate(() => {
+    const details = [...document.querySelectorAll('[aria-label="Event details"]')].pop();
+    return {top: Math.round(details.scrollTop), max: details.scrollHeight - details.clientHeight};
+  });
+}
+
+/** True when a text is on screen, between the header and the actions. */
+async function onScreen(page, text, below = 80, above = 500) {
+  return page.evaluate(
+    ([wanted, top, bottom]) => {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        if (!node.textContent.includes(wanted)) continue;
+        const range = document.createRange();
+        range.selectNodeContents(node);
+        const rect = range.getBoundingClientRect();
+        if (rect.height > 0 && rect.top >= top && rect.bottom <= bottom) return true;
+      }
+      return false;
+    },
+    [text, below, above],
+  );
 }
 
 async function capture(page, file) {
@@ -150,11 +186,15 @@ const scenarios = {
     await waitText(page, "Mom's birthday");
     await page.waitForTimeout(800);
     assert.match(await focusLabel(page), /^Design review, 15:00 – 16:00, Google Meet · Work, in 25 min$/);
+    // Four events are over: the agenda is scrolled to the focused one, which is on screen.
+    const box = await focusedBox(page);
+    assert.ok(box.top >= 60 && box.bottom <= box.height, JSON.stringify(box));
     // Birthdays is not selected in Google, so its events stay hidden.
     assert.equal(await page.getByText("Bruno's birthday").count(), 0);
     await shot('today');
-    await focusUntil(page, 'ArrowUp', /Team sync/, 3);
-    await focusUntil(page, 'ArrowDown', /Gym/, 4);
+    await focusUntil(page, 'ArrowUp', /1:1 with Marco/, 1);
+    await focusUntil(page, 'ArrowUp', /Team sync/, 4);
+    await focusUntil(page, 'ArrowDown', /Gym/, 7);
     // Only Authorization and Content-Type were ever asked for in a preflight.
     const stats = await fetch(`${MOCK}/__mock/stats`).then(response => response.json());
     assert.ok(stats.preflightHeaders.every(header => ['authorization', 'content-type'].includes(header)), stats.preflightHeaders.join());
@@ -191,20 +231,20 @@ const scenarios = {
     await press(page, 'Enter');
     await waitText(page, 'meet.google.com/abc-defg-hij');
     await waitText(page, 'Room 3 · Av. Paulista, 1000');
-    await waitText(page, '5 guests · 3 going, 1 maybe');
+    await waitText(page, '6 guests · 3 going, 1 maybe, 1 declined');
     await waitText(page, 'Bring the latest prototype & notes.');
     await waitText(page, 'Today · in 25 min');
     assert.equal(new URL(page.url()).pathname, '/event/work.team%40group.calendar.google.com/evdesignreview');
     // The details take the focus (they scroll); the answers are below them.
     await page.waitForTimeout(700);
     assert.match(await focusLabel(page), /Event details/);
-    await focusUntil(page, 'ArrowDown', /Going|Maybe|^No$/, 2);
+    await focusUntil(page, 'ArrowDown', /Going|Maybe|^No$/, 12);
     await focusUntil(page, 'ArrowLeft', /Going/, 2);
     await shot('event');
     await focusUntil(page, 'ArrowRight', /Maybe/, 2);
     await press(page, 'Enter');
     await waitText(page, 'You might go');
-    await waitText(page, '5 guests · 2 going, 2 maybe');
+    await waitText(page, '6 guests · 2 going, 2 maybe, 1 declined');
     const writes = await fetch(`${MOCK}/__mock/writes`).then(response => response.json());
     assert.equal(writes.length, 1);
     assert.equal(writes[0].method, 'PATCH');
@@ -218,6 +258,7 @@ const scenarios = {
         ['julia@example.com', 'accepted'],
         ['rafael@example.com', 'tentative'],
         ['lena@example.com', 'needsAction'],
+        ['bruno.lima@example.com', 'declined'],
         ['room3@resource.calendar.google.com', 'accepted'],
       ],
     );
@@ -232,6 +273,142 @@ const scenarios = {
     await press(page, 'Enter');
     await waitText(page, 'Smart Fit Paulista');
     assert.equal(await page.getByText('Maybe', {exact: true}).count(), 0);
+    assert.deepEqual(errors, []);
+    await context.close();
+  },
+
+  async 'event: the whole description scrolls with Down before the answers'(browser, name) {
+    await control('reset');
+    const {page, context, errors, shot} = await openApp(browser, name, google);
+    await waitText(page, 'Design review');
+    await page.waitForTimeout(800);
+    await press(page, 'Enter');
+    await waitText(page, 'Bring the latest prototype & notes.');
+    await page.waitForTimeout(700);
+    assert.match(await focusLabel(page), /Event details/);
+    const start = await detailsScroll(page);
+    assert.equal(start.top, 0);
+    assert.ok(start.max > 600, `the details are long: ${start.max}`);
+    // Nothing is cut: the last paragraph, the bullets and the links as text are there.
+    assert.equal(await onScreen(page, "If you can't make it, leave comments on the prototype by noon.", -1e6, 1e6), true);
+    await waitText(page, '• Calendar permission copy (Rafael)');
+    await waitText(page, 'Prototype: onboarding flows (https://figma.example.com/onboarding)');
+    // Down: first the guests link, then the details scroll, press by press, to their end.
+    await press(page, 'ArrowDown');
+    assert.match(await focusLabel(page), /^6 guests/);
+    let previous = -1;
+    let presses = 0;
+    for (;;) {
+      await press(page, 'ArrowDown');
+      presses += 1;
+      const label = await focusLabel(page);
+      const {top, max} = await detailsScroll(page);
+      if (/Going|Maybe|^No$/.test(label)) {
+        // The answers come only once the details are at their end.
+        assert.equal(previous, max);
+        break;
+      }
+      assert.match(label, /Event details/);
+      assert.ok(top > previous, `scrolled down: ${previous} → ${top}`);
+      previous = top;
+      if (top === max) {
+        assert.equal(await onScreen(page, 'bruno.lima@example.com'), true);
+        await shot('details-end');
+      }
+      assert.ok(presses < 15, 'too many presses');
+    }
+    assert.ok(presses >= 3, `several presses to read it all (${presses})`);
+    // Up goes back into the details, then scrolls them up to the top.
+    await press(page, 'ArrowUp');
+    assert.match(await focusLabel(page), /Event details/);
+    for (let i = 0; i < 12 && (await detailsScroll(page)).top > 0; i += 1) await press(page, 'ArrowUp');
+    assert.equal((await detailsScroll(page)).top, 0);
+    assert.equal(await onScreen(page, '15:00 – 16:00'), true);
+    assert.deepEqual(errors, []);
+    await context.close();
+  },
+
+  async 'event: Guests (N) with each answer, the organizer and you; the summary leads there'(browser, name) {
+    await control('reset');
+    const {page, context, errors, shot} = await openApp(browser, name, google);
+    await waitText(page, 'Design review');
+    await page.waitForTimeout(800);
+    await press(page, 'Enter');
+    await waitText(page, '6 guests · 3 going, 1 maybe, 1 declined');
+    await page.waitForTimeout(700);
+    assert.equal(await onScreen(page, 'Guests (6)'), false);
+    await focusUntil(page, 'ArrowDown', /^6 guests · 3 going, 1 maybe, 1 declined\. Select to see the guests\.$/, 2);
+    await press(page, 'Enter');
+    await page.waitForTimeout(500);
+    assert.equal(await onScreen(page, 'Guests (6)'), true);
+    assert.match(await focusLabel(page), /Event details/);
+    await shot('guests');
+    const rows = await page.evaluate(() =>
+      [...document.querySelectorAll('.guest-row')].map(row => row.innerText.replace(/\s+/g, ' ').trim()),
+    );
+    assert.deepEqual(rows, [
+      'ML Marco Lopes Going · Organizer',
+      'AS Ana Souza (you) Going',
+      'JR Julia Reis Going',
+      'RC Rafael Costa Maybe',
+      'L Lena Awaiting',
+      'BL bruno.lima@example.com Declined',
+    ]);
+    // The room is a resource, not a guest.
+    assert.equal(await page.getByText('Room 3', {exact: true}).count(), 0);
+    // Reading on reaches the answers; a reply updates the list.
+    await focusUntil(page, 'ArrowDown', /Going|Maybe|^No$/, 6);
+    await focusUntil(page, 'ArrowLeft', /Going/, 2);
+    await focusUntil(page, 'ArrowRight', /^No$/, 2);
+    await press(page, 'Enter');
+    await waitText(page, "You're not going");
+    await waitText(page, 'Ana Souza (you)');
+    const mine = await page.evaluate(() => [...document.querySelectorAll('.guest-row')].map(row => row.innerText.replace(/\s+/g, ' ').trim()).find(text => text.includes('(you)')));
+    assert.equal(mine, 'AS Ana Souza (you) Declined');
+    assert.deepEqual(errors, []);
+    await context.close();
+  },
+
+  async 'event in Portuguese: Convidados (N) and the answers'(browser, name) {
+    await control('reset');
+    const {page, context, errors} = await openApp(browser, name, google, {locale: 'pt-BR'});
+    await waitText(page, 'Design review');
+    await page.waitForTimeout(800);
+    await press(page, 'Enter');
+    await waitText(page, '6 convidados');
+    await page.waitForTimeout(700);
+    await focusUntil(page, 'ArrowDown', /Selecione para ver os convidados/, 2);
+    await press(page, 'Enter');
+    await page.waitForTimeout(500);
+    assert.equal(await onScreen(page, 'Convidados (6)'), true);
+    for (const text of ['Vai · Organizador', 'Ana Souza (você)', 'Talvez', 'Sem resposta', 'Recusou']) await waitText(page, text);
+    assert.deepEqual(errors, []);
+    await context.close();
+  },
+
+  async 'today on a slow link: opens on the event of now; back after two hours, on the one going on then'(browser, name) {
+    await control('reset');
+    await control('delay', '?ms=1500');
+    const {page, context, errors, shot} = await openApp(browser, name, google, {clock: true});
+    await waitText(page, 'Design review', 15000);
+    await page.waitForTimeout(1200);
+    assert.match(await focusLabel(page), /^Design review/);
+    let box = await focusedBox(page);
+    assert.ok(box.top >= 60 && box.bottom <= box.height, `on screen: ${JSON.stringify(box)}`);
+    // Earlier events above, later ones below.
+    assert.equal(await onScreen(page, '1:1 with Marco', 0, box.top), true);
+    assert.equal(await onScreen(page, 'Call with Andy', box.bottom, 600), true);
+    await shot('launch');
+    await control('delay', '?ms=0');
+    // Two hours later (16:35): Design review is over, Call with Andy (16:30–17:00) is going on.
+    await page.clock.fastForward('02:00:00');
+    await page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await page.waitForTimeout(1500);
+    assert.match(await focusLabel(page), /^Call with Andy, 16:30 – 17:00, Phone · Personal, now$/);
+    box = await focusedBox(page);
+    assert.ok(box.top >= 60 && box.bottom <= box.height, `on screen: ${JSON.stringify(box)}`);
+    await shot('resumed');
+    await focusUntil(page, 'ArrowUp', /Design review/, 1);
     assert.deepEqual(errors, []);
     await context.close();
   },
@@ -329,7 +506,7 @@ const scenarios = {
     await press(page, 'Enter');
     await page.waitForTimeout(800);
     assert.equal(new URL(page.url()).pathname, '/');
-    await focusUntil(page, 'ArrowUp', /Page 1 of 4/, 4);
+    await focusUntil(page, 'ArrowUp', /Page 1 of 4/, 8);
     await press(page, 'ArrowRight', 2);
     await press(page, 'ArrowDown');
     assert.equal(await page.evaluate(() => document.activeElement?.value), '');
@@ -436,7 +613,7 @@ const scenarios = {
     await press(page, 'Enter');
     await waitText(page, 'meet.google.com/abc-defg-hij');
     await page.waitForTimeout(700);
-    await focusUntil(page, 'ArrowDown', /Going|Maybe|^No$/, 2);
+    await focusUntil(page, 'ArrowDown', /Going|Maybe|^No$/, 12);
     await focusUntil(page, 'ArrowRight', /^No$/, 3);
     await press(page, 'Enter');
     await waitText(page, "You're not going");
@@ -473,8 +650,15 @@ const scenarios = {
     await press(page, 'ArrowDown');
     await focusUntil(page, 'ArrowDown', /Design review/, 3);
     await press(page, 'Enter');
-    await waitText(page, '5 guests · 3 going, 1 maybe');
+    await waitText(page, '6 guests · 3 going, 1 maybe, 1 declined');
     await capture(page, `${prefix}-03-event.png`);
+    await press(page, 'ArrowDown', 3);
+    await capture(page, `${prefix}-03b-event-description.png`);
+    await press(page, 'ArrowUp', 3);
+    await focusUntil(page, 'ArrowDown', /6 guests/, 2);
+    await press(page, 'Enter');
+    await waitText(page, 'Guests (6)');
+    await capture(page, `${prefix}-03c-event-guests.png`);
     await press(page, 'Escape');
     await waitText(page, 'Call with Andy');
     await page.waitForTimeout(600);
@@ -491,7 +675,7 @@ const scenarios = {
     await press(page, 'Enter');
     await waitText(page, 'Saved to Personal');
     await capture(page, `${prefix}-07-saved.png`);
-    await focusUntil(page, 'ArrowUp', /Page 1 of 4/, 4);
+    await focusUntil(page, 'ArrowUp', /Page 1 of 4/, 8);
     await press(page, 'ArrowRight', 3);
     await waitText(page, 'Holidays in Brazil');
     await press(page, 'ArrowDown');

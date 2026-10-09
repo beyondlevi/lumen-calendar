@@ -2,7 +2,7 @@
   "id": "cloud.bynd.lumen.calendar",
   "name": "Calendar for Lumen",
   "short_name": "Calendar",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Google Calendar on your glasses: today, the week, replies to invitations and new events by voice or handwriting.",
   "lang": "en",
   "start_url": "./",

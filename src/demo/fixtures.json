@@ -9,19 +9,23 @@
   "events": [
     {"calendarId": "ana.souza@example.com", "id": "evbirthday", "day": 0, "allDayDays": 1, "summary": "Mom's birthday"},
     {"calendarId": "work.team@group.calendar.google.com", "id": "evteamsync", "mockOnly": true, "day": 0, "start": "09:00", "end": "09:30", "summary": "Team sync", "hangoutLink": "https://meet.google.com/kqv-rtsm-pwd", "conferenceData": {"conferenceSolution": {"name": "Google Meet"}, "entryPoints": [{"entryPointType": "video", "uri": "https://meet.google.com/kqv-rtsm-pwd"}]}},
+    {"calendarId": "ana.souza@example.com", "id": "evcoffee", "mockOnly": true, "day": 0, "start": "10:30", "end": "11:00", "summary": "Coffee with Leo", "location": "Padaria Real"},
+    {"calendarId": "ana.souza@example.com", "id": "evlunch", "mockOnly": true, "day": 0, "start": "12:00", "end": "13:00", "summary": "Lunch", "location": "Home"},
+    {"calendarId": "work.team@group.calendar.google.com", "id": "evoneonone", "mockOnly": true, "day": 0, "start": "13:30", "end": "14:00", "summary": "1:1 with Marco", "hangoutLink": "https://meet.google.com/one-onex-mrc", "conferenceData": {"conferenceSolution": {"name": "Google Meet"}, "entryPoints": [{"entryPointType": "video", "uri": "https://meet.google.com/one-onex-mrc"}]}},
     {
       "calendarId": "work.team@group.calendar.google.com", "id": "evdesignreview", "day": 0, "start": "15:00", "end": "16:00",
       "summary": "Design review",
       "location": "Room 3 · Av. Paulista, 1000",
-      "description": "<p>Go through the new onboarding screens before the release.</p><p><b>Bring</b> the latest prototype &amp; notes.</p>",
+      "description": "<p>Go through the new onboarding screens before the release.</p><p><b>Bring</b> the latest prototype &amp; notes.</p><p>Agenda:</p><ul><li>Welcome flow and sign-in (Julia)</li><li>Calendar permission copy (Rafael)</li><li>Empty states and errors (Marco)</li><li>What ships on Friday, what waits</li></ul><p>Prototype: <a href=\"https://www.google.com/url?q=https://figma.example.com/onboarding&amp;sa=D\">onboarding flows</a><br>Notes from last week: <a href=\"https://docs.example.com/review-notes\">https://docs.example.com/review-notes</a></p><p>If you can't make it, leave comments on the prototype by noon.</p>",
       "hangoutLink": "https://meet.google.com/abc-defg-hij",
       "conferenceData": {"conferenceSolution": {"name": "Google Meet"}, "entryPoints": [{"entryPointType": "video", "uri": "https://meet.google.com/abc-defg-hij", "label": "meet.google.com/abc-defg-hij"}, {"entryPointType": "phone", "uri": "tel:+55-11-4000-0000"}]},
       "attendees": [
-        {"email": "ana.souza@example.com", "self": true, "responseStatus": "accepted"},
-        {"email": "marco@example.com", "displayName": "Marco", "organizer": true, "responseStatus": "accepted"},
-        {"email": "julia@example.com", "displayName": "Julia", "responseStatus": "accepted"},
-        {"email": "rafael@example.com", "displayName": "Rafael", "responseStatus": "tentative"},
+        {"email": "ana.souza@example.com", "displayName": "Ana Souza", "self": true, "responseStatus": "accepted"},
+        {"email": "marco@example.com", "displayName": "Marco Lopes", "organizer": true, "responseStatus": "accepted"},
+        {"email": "julia@example.com", "displayName": "Julia Reis", "responseStatus": "accepted"},
+        {"email": "rafael@example.com", "displayName": "Rafael Costa", "responseStatus": "tentative"},
         {"email": "lena@example.com", "displayName": "Lena", "responseStatus": "needsAction"},
+        {"email": "bruno.lima@example.com", "responseStatus": "declined"},
         {"email": "room3@resource.calendar.google.com", "displayName": "Room 3", "resource": true, "responseStatus": "accepted"}
       ]
     },

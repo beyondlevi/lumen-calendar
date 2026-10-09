@@ -7,7 +7,7 @@ today's agenda, the week, event details with your reply, and new events dictated
 > **Unofficial.** Not affiliated with, endorsed or sponsored by Google LLC, Meta Platforms, Inc. or Rokid.
 > Google Calendar is a trademark of Google LLC, used here only to say what the app works with.
 
-**Status:** 0.1.0, offline package (`lumen-calendar.mrbd.zip`) for one Google account.
+**Status:** 0.1.1, offline package (`lumen-calendar.mrbd.zip`) for one Google account.
 
 ## What it does
 
@@ -15,8 +15,10 @@ Four peer tabs, moved between from the pill at the top (swipe up to it, then lef
 
 - **Today** (the start screen): all-day events as chips, then today's timed events from the calendars you
   show, by start time. Each row has the start and end, the calendar's color, the title and
-  "<meeting or place> · <calendar>". The next event that hasn't ended takes the focus and says
-  "in 25 min" (or "now" while it runs); events already over stay in the list, dimmed.
+  "<meeting or place> · <calendar>". The agenda opens on the event going on now (or, if none, the next
+  one), scrolled to it and focused, saying "now" or "in 25 min" in the accent color; earlier events stay
+  above it, dimmed, and later ones below. Coming back to the app after its event is over moves the focus
+  to the event of that moment.
 - **Week**: the 7 days after today, grouped by day ("Tomorrow · Sat 10", "Sunday · 11 Oct"), all-day
   events with the sun.
 - **New**: one real text field, "What, when and where". The index tap on it opens Lumen's composer,
@@ -26,9 +28,13 @@ Four peer tabs, moved between from the pill at the top (swipe up to it, then lef
   pick another on the review screen).
 
 Enter on an event opens it: the time, "Today · in 25 min", the video call, the place, the guests
-("5 guests · 3 going, 1 maybe") and the description as plain text. When you are a guest, **Going**,
-**Maybe** and **No** answer the invitation (the organizer is notified); your current answer is the
-highlighted one.
+("5 guests · 3 going, 1 maybe"), the whole description and the guest list. The description is plain
+text with its line breaks, paragraphs and bullets; links show as their text, with the address when the
+words differ. Down scrolls the event half a screen at a time, to its very end, and only then reaches
+the answers; Up scrolls back. The guests line is a link: Enter on it jumps to **Guests (N)**, where each
+person shows with their initials, name (or e-mail address) and answer (Going, Maybe, Declined or
+Awaiting), the organizer and you marked. When you are a guest, **Going**, **Maybe** and **No** answer the
+invitation (the organizer is notified); your current answer is the highlighted one.
 
 The review of a new event shows the title, the day and time, the place and the calendar (Enter on the card
 switches to the next calendar you can write to), with **Save**, **Edit** (back to the text) and
@@ -149,8 +155,9 @@ npm run icons               # re-renders public/icon-*.png
   the mock) and `dev.now` (an ISO date where the clock starts).
 - **Mock Google**: `node mock/server.mjs` serves the demo fixtures on `http://127.0.0.1:8090`, checks the
   OAuth values (`MOCK_*` in the file), allows only `Authorization` and `Content-Type` in its CORS
-  preflight (a custom header fails, as with Google) and has controls to fail calls, expire access tokens
-  and revoke the refresh token (`/__mock/*`). The e2e runner (`tests/e2e/run.mjs`) starts it and serves
+  preflight (a custom header fails, as with Google) and has controls to fail or delay calls, expire
+  access tokens and revoke the refresh token (`/__mock/*`). It also serves the fixtures marked
+  `mockOnly` (four events already over today), which demo mode leaves out. The e2e runner (`tests/e2e/run.mjs`) starts it and serves
   `dist/` and the unzipped package the way Lumen does; `E2E_BROWSERS=firefox` and `E2E_ONLY=<regex>`
   narrow a run, and screenshots go to `.e2e-output/` (the demo captures of every screen to
   `.e2e-output/captures/`).
@@ -172,7 +179,6 @@ npm run icons               # re-renders public/icon-*.png
 - One Google account. Recurring events show each occurrence; editing or deleting events and creating
   recurring ones are not in the app (use Google Calendar on the phone).
 - Video call links are shown, not opened: an offline app can't open another site.
-- A long description is cut on the glasses.
 - The sentence parser understands English and Portuguese only.
 
 ## License
